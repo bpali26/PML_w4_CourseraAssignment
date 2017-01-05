@@ -1,0 +1,91 @@
+---
+title: "PML_W4_CourseraAssignment"
+author: "bhawani paliwal"
+date: "5 January 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r ,echo=TRUE}
+
+library("caret")
+library("ggplot2")
+library("randomForest")
+library("rpart")
+library("rattle")
+
+#Reading Data
+
+training<-read.csv("//Users//garimapaliwal//Downloads//pml-training.csv",sep=",",header=T)
+testing<-read.csv("//Users//garimapaliwal//Downloads//pml-testing.csv",sep=",",header=T)
+
+dim(training)
+dim(testing)
+
+#Data Cleaning
+
+#since the data contains 160 variables, we need to clean out some variables that may not be significant to our "classe" variable prediction. For this we'll drop out:
+#1. variables that have lots of missing data 
+#2. variables which are almost consitent with their values
+#3. variables that cannot be linked to the quality of excercise i.e. our 'classe' outcome.
+
+training<-training[,!(apply(apply(training,2,is.na),2,mean)>0.6)]  
+# droping out variables that have more than 60% of mmissing values
+dim(training)
+
+nearzero <- nearZeroVar(training, saveMetrics = TRUE)
+print(nearzero)
+training<-training[,!nearzero$nzv]
+# droping out variables with zero or negligible variance
+dim(training)
+
+str(training)
+training<-training[,-c(1:6)]
+# droping out variables that were used for data acquisition and hence, will not affect our classe variable
+
+# Data Partitioning for training & testing
+set.seed(3456)
+inTrain<-createDataPartition(training$classe,p=0.7,list=F) 
+subtraining<-training[inTrain,] #data for model training
+subtesting<-training[-inTrain,] #data for model testing
+
+# Testing Machine Learning Algorithms
+
+# RandomForest
+
+set.seed(12345)
+rfmod<-randomForest(classe~.,data=subtraining)
+confusionMatrix(predict(rfmod,subtesting),subtesting$classe)
+# Randomforest provide 99.58% overall accuracy with the error rate of 0.42% (1-accuracy%) on our subtesting data.
+
+# Rpart decision tree
+set.seed(12345)
+rpartmod<-rpart(classe~.,data=subtraining,method="class")
+confusionMatrix(predict(rpartmod,subtesting,type="class"),subtesting$classe)
+# Decision Tree model provides 72.85% overall accuracy with the error rate of 27% on our subtesting data.
+
+#Inference: 
+#It looks like randomforest with 99.58% accuracy is much more reliable for predicting our classe variable than rpart algorithm with just 72.85% accuracy. Also, here I've discussed just two out of many other classifier models for the sake of simplicity. Hence, using randomforest as my final algorithm, below are the predicted classe for the test data:
+
+predict(rfmod,testing)
+```
+
+## Including Plots
+
+Plotting decision tree of our rpartmod model:
+
+```{r , echo=TRUE}
+library("rattle")
+fancyRpartPlot(rpartmod)
+```
+
+
